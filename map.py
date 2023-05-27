@@ -1,10 +1,38 @@
 from abc import ABC
 
-class Map(ABC):
-    width = None
-    height = None
+class Tile:
+    """Represents a game tile. Equal to other tile if positions are same."""
+    def __init__(self, typ, pos):
+        self.type = typ
+        self.pos = pos
+    
+    def __eq__(self, other):
+        if type(other) == int:
+            return self.pos == other
+        return (self.pos == other.pos) and (self.type == other.type)
+    
+    def __hash__(self):
+        return hash(frozenset([self.pos, self.type]))
 
-    def moves(self, pos, func) -> list[frozenset]:
+    def __lt__(self, other):
+        return self.pos < other.pos  # for sorting
+
+
+class TileList(list):
+    """A sortable list of tiles."""
+    hashabletype = frozenset
+
+    def copy(self):
+        """Return a TileList of new, equal Tile instances."""
+        return TileList([Tile(t.type, t.pos) for t in self])
+
+    def hashable(self):
+        """Return a hashable set of this list."""
+        return self.hashabletype(self)
+
+
+class Map(ABC):
+    def moves(self, pos, func) -> list[TileList.hashabletype]:
         """Move each pos in tiles in all 4 directions and return a list of 4 sets of tiles."""
         pass
 
@@ -17,9 +45,10 @@ class Map(ABC):
 
 class IntMap(Map):
     """A map where each position is represented by in integer."""
-    width = None
-    height = None
-    directions = ["←", "→", "↑", "↓"]
+    DIRECTIONS = ['←', '→', '↑', '↓']
+    START_CHARS = [chr(ord('a')+i) for i in range(26)]
+    DEST_CHARS = [chr(ord('A')+i) for i in range(26)]
+    OBSTACLE_CHAR = '#'
 
     def __init__(self, filename=None, width=None, height=None, obstacles=None, start=None, dest=None):
         if filename is not None:
@@ -28,74 +57,78 @@ class IntMap(Map):
             self.width = width
             self.height = height
             self.obstacles = obstacles
-            self.start = start
-            self.dest = dest
+            self.start = start  # type: TileList.hashabletype  # a set of tiles in starting position
+            self.dest = dest  # type: TileList.hashabletype  # a set of tiles in target position
     
-    def strpath(self, path_indices):
-        return "".join([self.directions[i] for i in path_indices])
+    def strpath(self, path_indices) -> str:
+        return "".join([self.DIRECTIONS[i] for i in path_indices])
 
-    def print(self, tiles = None):
+    def print(self, tiles = None) -> None:
         if tiles is None:
             tiles = []
         for line in self.str(tiles):
             print(line)
     
-    def str(self, tiles):
+    def str(self, tiles) -> str:
         textmap = [self.width*[' '] for _ in range(self.height)]
         for h in range(self.height):
             for w in range(self.width):
                 pos = h*self.width + w
                 if pos in self.obstacles:
-                    textmap[h][w] = "x"
-                elif pos in self.dest:
-                    textmap[h][w] = "a"
-                elif pos in self.start:
-                    textmap[h][w] = "1"
+                    textmap[h][w] = self.OBSTACLE_CHAR
+                elif pos in self.dest:  # compare int (pos) with tile
+                    tile = self.dest[self.dest.index(pos)]  # extract tile to get type
+                    textmap[h][w] = self.DEST_CHARS[tile.type]
+                elif pos in self.start:  # compare int (pos) with tile
+                    tile = self.start[self.start.index(pos)]  # extract tile to get type
+                    textmap[h][w] = self.START_CHARS[tile.type]
                 # overwrite with current tiles
                 if pos in tiles:
-                    textmap[h][w] = "o"
+                    textmap[h][w] = '0'
             textmap[h] = ''.join(textmap[h])
         return textmap
     
-    def moves(self, tiles):
+    def moves(self, tiles) -> list[TileList.hashabletype]:
         # ascending sort, because for left and up movement the upper and left-most tiles
         # have to be moved first (to prevent collision with a tile which could
         # actually be moved).
-        tiles = sorted(list(tiles))
+        tiles = TileList(sorted(tiles))
         left = self.__move(tiles.copy(), self.__left)
         up = self.__move(tiles.copy(), self.__up)
-        tiles = tiles[::-1]  # reverse order for right and down
+        tiles = TileList(tiles[::-1])  # reverse order for right and down
         right = self.__move(tiles.copy(), self.__right)
         down = self.__move(tiles.copy(), self.__down)
-        return [left, right, up, down]  # must be consistent with self.directions!
+        return [left, right, up, down]  # must be consistent with self.DIRECTIONS!
 
-    def __move(self, tiles: list[set], func):
-        """Move each pos in tiles according to func, if possible."""
-        for i, pos in enumerate(tiles):
-            newpos = func(pos)
+    def __move(self, tiles: TileList, func) -> TileList.hashabletype:
+        """Move each pos in tiles according to func, if possible.
+        Assumes correctly sorted TileList.
+        """
+        for tile in tiles:
+            newpos = func(tile.pos)  # type: int
             #        collision with obstacle      collision with other tile
-            if not ((newpos in self.obstacles) or (newpos in tiles)):
-                tiles[i] = newpos
-        return frozenset(tiles)  # make tiles hashable
+            if not ((newpos in self.obstacles) or (newpos in tiles)):  # comparison between int and Tile
+                tile.pos = newpos
+        return tiles.hashable()  # make tiles hashable
 
-    def __left(self, pos):
+    def __left(self, pos) -> int:
         return pos-1
 
-    def __right(self, pos):
+    def __right(self, pos) -> int:
         return pos+1
 
-    def __up(self, pos):
+    def __up(self, pos) -> int:
         return pos-self.width
 
-    def __down(self, pos):
+    def __down(self, pos) -> int:
         return pos+self.width
 
-    def load(self, filename):
+    def load(self, filename) -> None:
         """Loads a textfile where all obstacles (including borders) are marked by x
         Returns 3 variables:
         obstacles: the positions of the obstacles as a set.
-        start: the positions of the starting elements as a set.
-        dest: the positions of the target points as a set.
+        start: the positions of the starting elements as a list, containing indistinguishable sets of tiles.
+        dest: the positions of the target points as a list, containing indistinguishable sets of tiles.
         each position is an integer value counting row-first from top-left, i.e.
         pos=rownum*width + colnum
         """
@@ -103,18 +136,22 @@ class IntMap(Map):
             textmap = file.read().splitlines()
         self.height = len(textmap)
         self.width = max(len(line) for line in textmap)
-        self.obstacles = set()
-        self.start = set()
-        self.dest = set()
+        self.obstacles = TileList()
+        self.start = TileList()
+        self.dest = TileList()
+
+        # parse textmap
         for h, line in enumerate(textmap):
             for w, char in enumerate(line):
-                if char == "x":
-                    self.obstacles.add(h*self.width + w)
-                elif char == "1":
-                    self.start.add(h*self.width + w)
-                elif char == "a":
-                    self.dest.add(h*self.width + w)
+                pos = h*self.width + w
+                if char == self.OBSTACLE_CHAR:
+                    self.obstacles.append(pos)
+                if char in self.START_CHARS:
+                    self.start.append(Tile(self.START_CHARS.index(char), pos))
+                if char in self.DEST_CHARS:
+                    self.dest.append(Tile(self.DEST_CHARS.index(char), pos))
+
         # make objects hashable
-        self.obstacles = frozenset(self.obstacles)
-        self.start = frozenset(self.start)
-        self.dest = frozenset(self.dest)
+        self.obstacles = self.obstacles.hashable()
+        self.start = self.start.hashable()
+        self.dest = self.dest.hashable()

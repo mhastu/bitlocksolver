@@ -1,13 +1,11 @@
-class Node():
-    parent = None  # type: Node  # None ==> Node is root
-    parent_edge = None  # one of [None, 0, 1, 2, 3]
-    tiles = None  # type: int
+from map import TileList
 
-    def __init__(self, tiles: set, parent = None, parent_edge = None):
-        self.tiles = tiles
-        self.parent = parent
-        self.parent_edge = parent_edge
-    
+class Node():
+    def __init__(self, tiles: TileList.hashabletype, parent = None, parent_edge = None):
+        self.tiles = tiles  # type: TileList.hashabletype
+        self.parent = parent  # type: Node or None  # None ==> Node is root
+        self.parent_edge = parent_edge  # type: int or None  # one of [None, 0, 1, 2, 3]
+
     def is_root(self):
         return self.parent == None
 
