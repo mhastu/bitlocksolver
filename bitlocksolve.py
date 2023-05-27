@@ -20,14 +20,15 @@ class Solver():
         #print("-----------")
         root = Node(self.map.start)
         #self.lastleveltime = time.thread_time_ns()
-        result = self.walk(self.map, set([root]))
-        if result is False:
+        path = self.walk(self.map, set([root]))
+        if path is False:
             print("Found no optimal path in", self.maxit, "steps.")
-        elif result is None:
+        elif path is None:
             print("No moves possible anymore after", self.level, "steps.")
         else:
             print("Found optimal path in", self.level, "steps:")
-            print(self.map.strpath(result))
+            print(self.map.strpath(path))
+        return path
 
     def walk(self, mp: Map, leaves: set[Node], it_left = maxit):
         """Breadth-first iteration through tree.
@@ -40,6 +41,7 @@ class Solver():
         """
         self.level += 1
         #print(self.level, time.thread_time_ns() - self.lastleveltime)
+        print(self.level)
         #self.lastleveltime = time.thread_time_ns()
         #print("----- LEVEL", self.level, "------")
         newleaves = set()  # leaves of new level
@@ -66,10 +68,40 @@ class Solver():
         #print("------------------------------")
         return self.walk(mp, newleaves, it_left=it_left-1)
 
+    def walkthrough(self, strpath):
+        try:
+            path = [self.map.DIRECTIONS.index(a) for a in strpath]
+        except ValueError:
+            raise ValueError("use arrow symbols (like in output) to specify walkthrough path") from None
+        self.__walkthrough(path)
+
+    def __walkthrough(self, path):
+        tiles = self.map.start
+        print(self.map.str(tiles))
+        for dir in path:
+            print(self.map.DIRECTIONS[dir])
+            tiles = TileList(sorted(tiles))
+            if dir in [1, 3]:
+                tiles = tiles[::-1]
+            tiles = self.map.move(tiles, dir)
+            print(self.map.str(tiles))
+            input()
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("usage:", sys.argv[0], " <mapfilename>")
+        print("usage:", sys.argv[0], " <mapfilename> [-w|-W <arrows>]")
+        print("      -w:          walkthrough after completion")
+        print("      -W <arrows>: walkthrough given direction arrows")
         exit(1)
     filename = sys.argv[1]
-    Solver(filename).solve()
+    solver = Solver(filename)
+    if (len(sys.argv) > 2) and (sys.argv[2] == "-W"):
+        if len(sys.argv) < 4:
+            print("missing positional argument for -W: arrows")
+            exit(2)
+        solver.walkthrough(sys.argv[3])
+        exit(0)
+
+    path = solver.solve()
+    if (len(sys.argv) > 2) and (sys.argv[2] == "-w"):
+        solver.__walkthrough(path)

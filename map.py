@@ -52,6 +52,7 @@ class IntMap(Map):
     DESTROYER_CHAR = '+'
 
     def __init__(self, filename=None, width=None, height=None, obstacles=None, start=None, dest=None):
+        self.dir_funcs = [self.__left, self.__right, self.__up, self.__down]
         if filename is not None:
             self.load(filename)
         else:
@@ -107,6 +108,9 @@ class IntMap(Map):
         right = self.__move(tiles.copy(), self.__right)
         down = self.__move(tiles.copy(), self.__down)
         return [left, right, up, down]  # must be consistent with self.DIRECTIONS!
+
+    def move(self, tiles, dir):
+        return self.__move(tiles, self.dir_funcs[dir])
 
     def __move(self, tiles: TileList, func) -> TileList.hashabletype:
         """Move each pos in tiles according to func, if possible.

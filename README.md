@@ -8,7 +8,9 @@ Currently supported blocks:
 
 Usage:
 ```
-bitlocksolve.py <mapfilename>
+bitlocksolve.py <mapfilename> [-w|-W <arrows>]
+      -w:          walkthrough after completion
+      -W <arrows>: walkthrough given direction arrows
 ```
 
 Mapfile is a text file representing the 2D game map and uses following conventions:
