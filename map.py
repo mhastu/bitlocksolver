@@ -26,7 +26,7 @@ class TileList(list):
         """Return a TileList of new, equal Tile instances."""
         return TileList([Tile(t.type, t.pos) for t in self])
 
-    def hashable(self):
+    def hashable(self) -> hashabletype:
         """Return a hashable set of this list."""
         return self.hashabletype(self)
 
@@ -44,11 +44,12 @@ class Map(ABC):
 
 
 class IntMap(Map):
-    """A map where each position is represented by in integer."""
+    """A map where each position is represented by an integer."""
     DIRECTIONS = ['←', '→', '↑', '↓']
     START_CHARS = [chr(ord('a')+i) for i in range(26)]
     DEST_CHARS = [chr(ord('A')+i) for i in range(26)]
     OBSTACLE_CHAR = '#'
+    DESTROYER_CHAR = '+'
 
     def __init__(self, filename=None, width=None, height=None, obstacles=None, start=None, dest=None):
         if filename is not None:
@@ -59,35 +60,42 @@ class IntMap(Map):
             self.obstacles = obstacles
             self.start = start  # type: TileList.hashabletype  # a set of tiles in starting position
             self.dest = dest  # type: TileList.hashabletype  # a set of tiles in target position
-    
-    def strpath(self, path_indices) -> str:
-        return "".join([self.DIRECTIONS[i] for i in path_indices])
 
-    def print(self, tiles = None) -> None:
+    def __str__(self) -> str:
+        return self.str()
+
+    def str(self, tiles = None) -> str:
         if tiles is None:
-            tiles = []
-        for line in self.str(tiles):
-            print(line)
-    
-    def str(self, tiles) -> str:
+            tiles = []  # cannot use mutable object as default
         textmap = [self.width*[' '] for _ in range(self.height)]
+        # convert to list so we can search for positions
+        startlist = list(self.start)
+        destlist = list(self.dest)
+        startpositions = [t.pos for t in startlist]
+        destpositions = [t.pos for t in destlist]
         for h in range(self.height):
             for w in range(self.width):
                 pos = h*self.width + w
                 if pos in self.obstacles:
                     textmap[h][w] = self.OBSTACLE_CHAR
-                elif pos in self.dest:  # compare int (pos) with tile
-                    tile = self.dest[self.dest.index(pos)]  # extract tile to get type
-                    textmap[h][w] = self.DEST_CHARS[tile.type]
-                elif pos in self.start:  # compare int (pos) with tile
-                    tile = self.start[self.start.index(pos)]  # extract tile to get type
+                if pos in self.destroyers:
+                    textmap[h][w] = self.DESTROYER_CHAR
+                elif pos in startpositions:
+                    tile = startlist[startpositions.index(pos)]  # extract tile to get type
                     textmap[h][w] = self.START_CHARS[tile.type]
+                elif pos in destpositions:
+                    tile = destlist[destpositions.index(pos)]  # extract tile to get type
+                    textmap[h][w] = self.DEST_CHARS[tile.type]
                 # overwrite with current tiles
                 if pos in tiles:
                     textmap[h][w] = '0'
             textmap[h] = ''.join(textmap[h])
+        textmap = '\n'.join(textmap)
         return textmap
-    
+
+    def strpath(self, path_indices) -> str:
+        return "".join([self.DIRECTIONS[i] for i in path_indices])
+
     def moves(self, tiles) -> list[TileList.hashabletype]:
         # ascending sort, because for left and up movement the upper and left-most tiles
         # have to be moved first (to prevent collision with a tile which could
@@ -109,6 +117,7 @@ class IntMap(Map):
             #        collision with obstacle      collision with other tile
             if not ((newpos in self.obstacles) or (newpos in tiles)):  # comparison between int and Tile
                 tile.pos = newpos
+        tiles = TileList(filter(lambda t: t.pos not in self.destroyers, tiles))
         return tiles.hashable()  # make tiles hashable
 
     def __left(self, pos) -> int:
@@ -137,6 +146,7 @@ class IntMap(Map):
         self.height = len(textmap)
         self.width = max(len(line) for line in textmap)
         self.obstacles = TileList()
+        self.destroyers = TileList()
         self.start = TileList()
         self.dest = TileList()
 
@@ -146,6 +156,8 @@ class IntMap(Map):
                 pos = h*self.width + w
                 if char == self.OBSTACLE_CHAR:
                     self.obstacles.append(pos)
+                if char == self.DESTROYER_CHAR:
+                    self.destroyers.append(pos)
                 if char in self.START_CHARS:
                     self.start.append(Tile(self.START_CHARS.index(char), pos))
                 if char in self.DEST_CHARS:
@@ -153,5 +165,6 @@ class IntMap(Map):
 
         # make objects hashable
         self.obstacles = self.obstacles.hashable()
+        self.destroyers = self.destroyers.hashable()
         self.start = self.start.hashable()
         self.dest = self.dest.hashable()

@@ -7,6 +7,8 @@ import sys
 #import time
 
 class Solver():
+    maxit = 30
+
     def __init__(self, filename):
         self.seen = set()  # already seen tiles. if a newly calculated position is present here, the position is refused.
         self.level = 0  # currently generated level in tree
@@ -14,14 +16,20 @@ class Solver():
         #self.lastleveltime = 0
 
     def solve(self):
-        #mp.print()
+        #print(self.map)
         #print("-----------")
         root = Node(self.map.start)
         #self.lastleveltime = time.thread_time_ns()
         result = self.walk(self.map, set([root]))
-        print(self.map.strpath(result))
+        if result is False:
+            print("Found no optimal path in", self.maxit, "steps.")
+        elif result is None:
+            print("No moves possible anymore after", self.level, "steps.")
+        else:
+            print("Found optimal path in", self.level, "steps:")
+            print(self.map.strpath(result))
 
-    def walk(self, mp: Map, leaves: set[Node], it_left = 30):
+    def walk(self, mp: Map, leaves: set[Node], it_left = maxit):
         """Breadth-first iteration through tree.
         
         ## Parameters:
@@ -40,15 +48,18 @@ class Solver():
             moves = mp.moves(node.tiles)  # type: list[TileList.hashabletype]
             for dir_i, newtiles in enumerate(moves):
                 #print("direction", dir_i)
-                #mp.print(newtiles)
+                #print(mp.str(newtiles))
                 #print("-----------")
+                if len(newtiles) == 0:
+                    continue  # no moves possible for this node
                 newleaf = Node(newtiles, node, dir_i)
                 if newleaf.tiles == mp.dest:
-                    print("Found optimal path in", self.level, "steps:")
                     return newleaf.getrootpath()
                 if newleaf.tiles not in self.seen:
                     newleaves.add(newleaf)
                     self.seen.add(newleaf.tiles)
+        if len(newleaves) == 0:
+            return None
         if it_left <= 0:
             return False
 

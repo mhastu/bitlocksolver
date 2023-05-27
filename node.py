@@ -6,10 +6,10 @@ class Node():
         self.parent = parent  # type: Node or None  # None ==> Node is root
         self.parent_edge = parent_edge  # type: int or None  # one of [None, 0, 1, 2, 3]
 
-    def is_root(self):
+    def is_root(self) -> bool:
         return self.parent == None
 
-    def getrootpath(self):
+    def getrootpath(self) -> list[int]:
         """Returns path from root to node as list."""
         if self.parent.is_root():
             return [self.parent_edge]
