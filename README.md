@@ -60,7 +60,7 @@ whose memory complexity has an upper bound of _O_(4<sup>_n_</sup>).
 We even need to save the tile constellation of all nodes, to check if we already know a shorter path to a newly generated one.
 
 ## Outlook (ToDo)
-- [ ] The bottleneck seems to be the memory complexity.
+- [x] The bottleneck seems to be the memory complexity.
 Since the computations are, even in a non-optimized version, pretty low-cost, it might be advantageous to memorize the tree only up to a certain limit (tree level).
 Thereafter, we could compute all possibilities for the next _k_ steps height-first.
 If we find a solution we save the path, the tree itself is not saved (forgetful iteration).

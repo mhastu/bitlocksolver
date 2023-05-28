@@ -42,14 +42,16 @@ class Solver():
             return False
         if type(treeresult) == Tree:
             tree = treeresult
-            print("No solution found within", tree.height, "steps.")
-            #print("Starting forgetful iteration with additional path-length of", self.forgetfulsize)
-            #result = self.forgetful_iteration(tree, self.forgetfulsize)
-            #if result is False:
-            #    print("Found no solution in", self.treesize+self.forgetfulsize, "steps.")
-            #    return False
-            #path = result
-            #return path
+            #print("No solution found within", tree.height, "steps.")
+            print("Starting forgetful iteration with additional path-length of", self.forgetfulsize)
+            result = self.forgetful_iteration(tree, self.forgetfulsize)
+            if result is False:
+                print("Found no solution in", self.treesize+self.forgetfulsize, "steps.")
+            elif type(result) == list:
+                path = result
+                print("Found optimal path in", len(path), "steps:")
+                print(self.map.strpath(path))
+            return result
 
     def buildtree(self, leaves: set[Node]) -> list or Tree or int:
         """Breadth-first iteration through tree.
@@ -95,16 +97,35 @@ class Solver():
         - path (list) if optimal path found.
         - False if no optimal path found.
         """
-        for node in tree.leaves:
-            self.iterate_heightfirst(node, length)
+        # TODO: sort nodes by distance to dest
+        maxlength = length
+        path = False  # optimal path
+        numleaves = len(tree.leaves)
+        for i, node in enumerate(tree.leaves):
+            result = self.iterate_heightfirst(node, tree.height, maxlength, 0)
+            if type(result) == list:
+                path = result
+                print(f"Found solution in {len(path)} (+{len(path) - tree.height}) steps:", self.map.strpath(path))
+                maxlength = len(path) - tree.height - 1  # adjust maximum step length
+            print(f"{i}/{numleaves}", end="\r")
+        return path
     
-    def iterate_heightfirst(self, node, remaining_length):
+    def iterate_heightfirst(self, node, treeheight, maxlength, depth):
         """Search for solution by height-first iteration, beginning at node.
-        TODO: adjust remaining_length if a solution has been found.
-        for this, remember total path length.
 
         ## Parameters:
+        node: (Node) node object to start from.
+        baseheight: (int) memorized tree height to start from.
+        treeheight: (int) number of steps to try.
+        depth: (int) current iteration depth.
+
+        ## Returns
+        - False if no solution has been found,
+        - path (list) if solution has been found.
         """
+        path = False
+        if (maxlength - depth) <= 0:
+            return False
         moves = self.map.moves(node.tiles)  # type: list[TileList.hashabletype]
         for dir_i, newtiles in enumerate(moves):
             if len(newtiles) == 0:
@@ -112,7 +133,11 @@ class Solver():
             newleaf = Node(newtiles, node, dir_i)
             if newleaf.tiles == self.map.dest:
                 return newleaf.getrootpath()
-            self.iterate_heightfirst(newleaf, remaining_length-1)
+            result = self.iterate_heightfirst(newleaf, treeheight, maxlength, depth+1)
+            if type(result) == list:  # found a solution
+                path = result
+                maxlength = len(path) - treeheight - 1  # adjust maximum step length
+        return path
 
     def walkthrough(self, path: list or str):
         """Simulate walkthrough. Advance with Enter.
