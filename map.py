@@ -1,7 +1,7 @@
 from abc import ABC
 
 class Tile:
-    """Represents a game tile. Equal to other tile if positions are same."""
+    """Represents a game tile. Equal to other tile if positions and type are same."""
     def __init__(self, typ, pos):
         self.type = typ
         self.pos = pos
