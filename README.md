@@ -49,7 +49,7 @@ This is because already seen tile constellations are rejected,
 which happens more often in smaller maps.
 
 An infinitely expanded map with no obstacles is solved in _O_(_n_<sup>2</sup>),
-because only at the perimeter new positions can be found, which grows with the square of the radius.
+because only at the perimeter of new positions can be found, which grows with the square of the radius.
 
 An infinitely expanded map with no obstacles and height 1 is solved in _O_(_n_).
 
