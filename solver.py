@@ -1,79 +1,125 @@
 from map import Map, IntMap, TileList, Tile
 from node import Node
-import sys
-#import time
 
-# TODO: multithreading
+
+class Tree:
+    """Represents the game moves-tree.
+    Saved are just the leaves (Node objects) from where one can iterate from above.
+    Additionally, the "seen" set contains all seen tile constellations.
+    """
+    def __init__(self, leaves: set[Node], seen: set = None):
+        self.leaves = leaves  # type: set[Node]
+        self.seen = seen  # type: set[frozenset]
+        if self.seen is None:
+            self.seen = set()
+        self.height = 0  # level of the leaves
+
 
 class Solver():
-    maxit = 20
-
-    def __init__(self, filename, maxit: int = None):
-        if maxit is not None:
-            self.maxit = maxit
-
-        self.seen = set()  # already seen tiles. if a newly calculated position is present here, the position is refused.
-        self.level = 0  # currently generated level in tree
+    def __init__(self, filename: str, treesize: int, forgetfulsize: int):
         self.map = IntMap(filename)
-        #self.lastleveltime = 0
+        self.treesize = treesize
+        self.forgetfulsize = forgetfulsize
 
-    def solve(self):
-        #print(self.map)
-        #print("-----------")
+    def solve(self) -> list or False:
+        """Search for solution.
+        
+        ## Returns
+        - path (list) if solution found.
+        - False, if no solution found.
+        """
         root = Node(self.map.start)
-        #self.lastleveltime = time.thread_time_ns()
-        path = self.walk(self.map, set([root]))
-        if path is False:
-            print("Found no optimal path in", self.maxit, "steps.")
-        elif path is None:
-            print("No moves possible anymore after", self.level, "steps.")
-        else:
-            print("Found optimal path in", self.level, "steps:")
+        print("Building tree with", self.treesize, "levels...")
+        treeresult = self.buildtree(set([root]))
+        if type(treeresult) == list:
+            path = treeresult
+            print("Found optimal path in", len(path), "steps:")
             print(self.map.strpath(path))
-        return path
+            return path
+        if type(treeresult) == int:
+            dead_end_step = treeresult
+            print("No moves possible anymore after", dead_end_step, "steps.")
+            return False
+        if type(treeresult) == Tree:
+            tree = treeresult
+            print("No solution found within", tree.height, "steps.")
+            #print("Starting forgetful iteration with additional path-length of", self.forgetfulsize)
+            #result = self.forgetful_iteration(tree, self.forgetfulsize)
+            #if result is False:
+            #    print("Found no solution in", self.treesize+self.forgetfulsize, "steps.")
+            #    return False
+            #path = result
+            #return path
 
-    def walk(self, mp: Map, leaves: set[Node], it_left = None):
+    def buildtree(self, leaves: set[Node]) -> list or Tree or int:
         """Breadth-first iteration through tree.
         
         ## Parameters:
-        mp: Game map.
         tiles: current position of each game tile.
         leaves: nodes to walk through
         it_left: number of iterations left.
+
+        ## Returns
+        - path: (list) if optimal solution found inside tree.
+        - tree: (Tree) if no solution found in tree.
+        - steps: (int) if no moves possible anymore.
         """
-        if it_left is None:
-            it_left = self.maxit
+        tree = Tree(leaves)
+        for level in range(self.treesize):
+            newleaves = set()  # leaves of new level
+            for node in tree.leaves:
+                moves = self.map.moves(node.tiles)  # type: list[TileList.hashabletype]
+                for dir_i, newtiles in enumerate(moves):
+                    if len(newtiles) == 0:
+                        continue  # no moves possible for this node
+                    newleaf = Node(newtiles, node, dir_i)
+                    if newleaf.tiles == self.map.dest:
+                        return newleaf.getrootpath()
+                    if newleaf.tiles not in tree.seen:
+                        newleaves.add(newleaf)
+                        tree.seen.add(newleaf.tiles)
+            if len(newleaves) == 0:
+                return level
+            tree.leaves = newleaves
+            tree.height = level+1
+        return tree
 
-        self.level += 1
-        #print(self.level, time.thread_time_ns() - self.lastleveltime)
-        print(self.level)
-        #self.lastleveltime = time.thread_time_ns()
-        #print("----- LEVEL", self.level, "------")
-        newleaves = set()  # leaves of new level
-        for nodenum, node in enumerate(leaves):
-            #print("node", nodenum)
-            moves = mp.moves(node.tiles)  # type: list[TileList.hashabletype]
-            for dir_i, newtiles in enumerate(moves):
-                #print("direction", dir_i)
-                #print(mp.str(newtiles))
-                #print("-----------")
-                if len(newtiles) == 0:
-                    continue  # no moves possible for this node
-                newleaf = Node(newtiles, node, dir_i)
-                if newleaf.tiles == mp.dest:
-                    return newleaf.getrootpath()
-                if newleaf.tiles not in self.seen:
-                    newleaves.add(newleaf)
-                    self.seen.add(newleaf.tiles)
-        if len(newleaves) == 0:
-            return None
-        if it_left <= 0:
-            return False
+    def forgetful_iteration(self, tree, length) -> list or False:
+        """Try all possibilities starting starting from tree.leaves, with given path-length.
+        
+        ## Parameters:
+        tree: (Tree) We start at its leaves.
+        length: (int) Maximum length of each additional path to try.
 
-        #print("------------------------------")
-        return self.walk(mp, newleaves, it_left=it_left-1)
+        ## Returns
+        - path (list) if optimal path found.
+        - False if no optimal path found.
+        """
+        for node in tree.leaves:
+            self.iterate_heightfirst(node, length)
+    
+    def iterate_heightfirst(self, node, remaining_length):
+        """Search for solution by height-first iteration, beginning at node.
+        TODO: adjust remaining_length if a solution has been found.
+        for this, remember total path length.
 
-    def walkthrough(self, path):
+        ## Parameters:
+        """
+        moves = self.map.moves(node.tiles)  # type: list[TileList.hashabletype]
+        for dir_i, newtiles in enumerate(moves):
+            if len(newtiles) == 0:
+                continue  # no moves possible for this node
+            newleaf = Node(newtiles, node, dir_i)
+            if newleaf.tiles == self.map.dest:
+                return newleaf.getrootpath()
+            self.iterate_heightfirst(newleaf, remaining_length-1)
+
+    def walkthrough(self, path: list or str):
+        """Simulate walkthrough. Advance with Enter.
+
+        ## Parameters:
+        path: list of directions (int) or string of arrows
+        """
         if type(path) == str:  # arrow path string
             try:
                 path = [self.map.DIRECTIONS.index(a) for a in path]

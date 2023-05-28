@@ -62,7 +62,8 @@ We even need to save the tile constellation of all nodes, to check if we already
 ## Outlook (ToDo)
 - [ ] The bottleneck seems to be the memory complexity.
 Since the computations are, even in a non-optimized version, pretty low-cost, it might be advantageous to memorize the tree only up to a certain limit (tree level).
-Thereafter, we could compute all possibilities for the next _k_ steps, as a last resort.
-If we find a solution we save the path.
+Thereafter, we could compute all possibilities for the next _k_ steps height-first.
+If we find a solution we save the path, the tree itself is not saved (forgetful iteration).
 Set _k_ = _pathlength_ - 1, to ensure new solutions are shorter.
-- [ ] Additionally to the _last resort_ implementation, we could sort the nodes of the last saved level by distance to the target to find more likely minimal solutions first.
+- [ ] Additionally to the _forgetful iteration_, we could sort the nodes of the last saved level by distance to the target to find more likely minimal solutions first.
+- [ ] Add multithreading support.
