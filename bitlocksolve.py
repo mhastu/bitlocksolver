@@ -1,107 +1,21 @@
 #!/bin/python3
-# TODO: multithreading
-
-from map import Map, IntMap, TileList, Tile
-from node import Node
 import sys
-#import time
+from solver import Solver
 
-class Solver():
-    maxit = 30
+if len(sys.argv) < 2:
+    print("usage:", sys.argv[0], " <mapfilename> [-w|-W <arrows>]")
+    print("      -w:          walkthrough after completion")
+    print("      -W <arrows>: walkthrough given direction arrows")
+    exit(1)
+filename = sys.argv[1]
+solver = Solver(filename)
+if (len(sys.argv) > 2) and (sys.argv[2] == "-W"):
+    if len(sys.argv) < 4:
+        print("missing positional argument for -W: arrows")
+        exit(2)
+    solver.walkthrough(sys.argv[3])
+    exit(0)
 
-    def __init__(self, filename):
-        self.seen = set()  # already seen tiles. if a newly calculated position is present here, the position is refused.
-        self.level = 0  # currently generated level in tree
-        self.map = IntMap(filename)
-        #self.lastleveltime = 0
-
-    def solve(self):
-        #print(self.map)
-        #print("-----------")
-        root = Node(self.map.start)
-        #self.lastleveltime = time.thread_time_ns()
-        path = self.walk(self.map, set([root]))
-        if path is False:
-            print("Found no optimal path in", self.maxit, "steps.")
-        elif path is None:
-            print("No moves possible anymore after", self.level, "steps.")
-        else:
-            print("Found optimal path in", self.level, "steps:")
-            print(self.map.strpath(path))
-        return path
-
-    def walk(self, mp: Map, leaves: set[Node], it_left = maxit):
-        """Breadth-first iteration through tree.
-        
-        ## Parameters:
-        mp: Game map.
-        tiles: current position of each game tile.
-        leaves: nodes to walk through
-        it_left: number of iterations left.
-        """
-        self.level += 1
-        #print(self.level, time.thread_time_ns() - self.lastleveltime)
-        print(self.level)
-        #self.lastleveltime = time.thread_time_ns()
-        #print("----- LEVEL", self.level, "------")
-        newleaves = set()  # leaves of new level
-        for nodenum, node in enumerate(leaves):
-            #print("node", nodenum)
-            moves = mp.moves(node.tiles)  # type: list[TileList.hashabletype]
-            for dir_i, newtiles in enumerate(moves):
-                #print("direction", dir_i)
-                #print(mp.str(newtiles))
-                #print("-----------")
-                if len(newtiles) == 0:
-                    continue  # no moves possible for this node
-                newleaf = Node(newtiles, node, dir_i)
-                if newleaf.tiles == mp.dest:
-                    return newleaf.getrootpath()
-                if newleaf.tiles not in self.seen:
-                    newleaves.add(newleaf)
-                    self.seen.add(newleaf.tiles)
-        if len(newleaves) == 0:
-            return None
-        if it_left <= 0:
-            return False
-
-        #print("------------------------------")
-        return self.walk(mp, newleaves, it_left=it_left-1)
-
-    def walkthrough(self, strpath):
-        try:
-            path = [self.map.DIRECTIONS.index(a) for a in strpath]
-        except ValueError:
-            raise ValueError("use arrow symbols (like in output) to specify walkthrough path") from None
-        self.__walkthrough(path)
-
-    def __walkthrough(self, path):
-        tiles = self.map.start
-        print(self.map.str(tiles))
-        for dir in path:
-            print(self.map.DIRECTIONS[dir])
-            tiles = TileList(sorted(tiles))
-            if dir in [1, 3]:
-                tiles = tiles[::-1]
-            tiles = self.map.move(tiles, dir)
-            print(self.map.str(tiles))
-            input()
-
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("usage:", sys.argv[0], " <mapfilename> [-w|-W <arrows>]")
-        print("      -w:          walkthrough after completion")
-        print("      -W <arrows>: walkthrough given direction arrows")
-        exit(1)
-    filename = sys.argv[1]
-    solver = Solver(filename)
-    if (len(sys.argv) > 2) and (sys.argv[2] == "-W"):
-        if len(sys.argv) < 4:
-            print("missing positional argument for -W: arrows")
-            exit(2)
-        solver.walkthrough(sys.argv[3])
-        exit(0)
-
-    path = solver.solve()
-    if (len(sys.argv) > 2) and (sys.argv[2] == "-w"):
-        solver.__walkthrough(path)
+path = solver.solve()
+if (len(sys.argv) > 2) and (sys.argv[2] == "-w"):
+    solver.walkthrough(path)
