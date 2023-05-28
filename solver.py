@@ -6,9 +6,12 @@ import sys
 # TODO: multithreading
 
 class Solver():
-    maxit = 30
+    maxit = 20
 
-    def __init__(self, filename):
+    def __init__(self, filename, maxit: int = None):
+        if maxit is not None:
+            self.maxit = maxit
+
         self.seen = set()  # already seen tiles. if a newly calculated position is present here, the position is refused.
         self.level = 0  # currently generated level in tree
         self.map = IntMap(filename)
@@ -29,7 +32,7 @@ class Solver():
             print(self.map.strpath(path))
         return path
 
-    def walk(self, mp: Map, leaves: set[Node], it_left = maxit):
+    def walk(self, mp: Map, leaves: set[Node], it_left = None):
         """Breadth-first iteration through tree.
         
         ## Parameters:
@@ -38,6 +41,9 @@ class Solver():
         leaves: nodes to walk through
         it_left: number of iterations left.
         """
+        if it_left is None:
+            it_left = self.maxit
+
         self.level += 1
         #print(self.level, time.thread_time_ns() - self.lastleveltime)
         print(self.level)
@@ -72,7 +78,8 @@ class Solver():
             try:
                 path = [self.map.DIRECTIONS.index(a) for a in path]
             except ValueError:
-                raise ValueError("use arrow symbols (like in output) to specify walkthrough path") from None
+                print("ERROR: use arrow symbols (like in output) to specify walkthrough path")
+                return
 
         tiles = self.map.start
         print(self.map.str(tiles))
