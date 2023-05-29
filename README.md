@@ -66,4 +66,4 @@ Thereafter, we could compute all possibilities for the next _k_ steps height-fir
 If we find a solution we save the path, the tree itself is not saved (forgetful iteration).
 Set _k_ = _pathlength_ - 1, to ensure new solutions are shorter.
 - [x] Additionally to the _forgetful iteration_, we could sort the nodes of the last saved level by distance to the target to find more likely minimal solutions first.
-- [ ] Add multithreading support.
+- [ ] Add [multithreading](https://docs.python.org/3/library/multiprocessing.html) support.
