@@ -65,5 +65,5 @@ Since the computations are, even in a non-optimized version, pretty low-cost, it
 Thereafter, we could compute all possibilities for the next _k_ steps height-first.
 If we find a solution we save the path, the tree itself is not saved (forgetful iteration).
 Set _k_ = _pathlength_ - 1, to ensure new solutions are shorter.
-- [ ] Additionally to the _forgetful iteration_, we could sort the nodes of the last saved level by distance to the target to find more likely minimal solutions first.
+- [x] Additionally to the _forgetful iteration_, we could sort the nodes of the last saved level by distance to the target to find more likely minimal solutions first.
 - [ ] Add multithreading support.
