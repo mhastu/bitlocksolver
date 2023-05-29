@@ -1,5 +1,6 @@
 from abc import ABC
 import numpy as np
+from collections import Counter
 
 class Tile:
     """Represents a game tile. Equal to other tile if positions and type are same."""
@@ -40,9 +41,9 @@ class TileList(list):
         """
         # calculate norm between all positions
         selfvecs = np.array([mp.pos2vec(st.pos) for st in self])[None]  # shape: (1, N, 2)
-        selfvecs = np.transpose(selfvecs, [2, 0, 1])  # shape: (2, N, 1)
+        selfvecs = np.transpose(selfvecs, [2, 1, 0])  # shape: (2, N, 1)
         othervecs = np.array([mp.pos2vec(ot.pos) for ot in other])[None]  # shape: (1, K, 2)
-        othervecs = np.transpose(othervecs, [2, 1, 0])  # shape: (2, 1, K)
+        othervecs = np.transpose(othervecs, [2, 0, 1])  # shape: (2, 1, K)
         norm1 = np.linalg.norm(selfvecs - othervecs, axis=0) + 1  # shape: (N, K)
 
         # extract types for comparing (in-)distinguishable tiles
@@ -53,7 +54,7 @@ class TileList(list):
         # sum over all set-distances
         dist = 0
         for typ in alltypes:
-            setdist = np.prod(norm1[selftypes==typ,othertypes==typ])
+            setdist = np.prod(norm1[selftypes==typ,:][:,othertypes==typ])
             dist += setdist
 
         return dist
@@ -205,6 +206,12 @@ class IntMap(Map):
         if error:
             print("ERROR: " + error)
             exit(10)
+        
+        # default
+        self.node_has_no_future = lambda tiles: not self.notzero_tiles(tiles)
+        if len(self.destroyers) > 0:
+            # always count tiles if destroyer block is present
+            self.node_has_no_future = lambda tiles: (not self.notzero_tiles(tiles)) or (not self.enough_tiles(tiles))
     
     def check_for_errors(self) -> str or False:
         """Returns error string if map blocks are invalid, else False."""
@@ -221,11 +228,15 @@ class IntMap(Map):
             if typ not in starttypes:
                 return "No corresponding starting tile for target tile " + self.DEST_CHARS[typ]
         
+        # change this if a generator block is added
+        if not self.enough_tiles(self.start):
+            return "Did not find enough starting tiles for all target tiles."
+
         for h in range(self.height):
             for w in range(self.width):
                 pos = self.vec2pos([h, w])
-                if self.isborder(pos) and (pos not in self.obstacles):
-                    return "Map is not surrounded by obstacle blocks"
+                if self.isborder(pos) and (pos not in self.obstacles) and (pos not in self.destroyers):
+                    return "Map is not surrounded by obstacle or destroyer blocks"
         
         return False
     
@@ -247,3 +258,23 @@ class IntMap(Map):
         h = vec[0]
         w = vec[1]
         return h*self.width + w
+
+    def enough_tiles(self, tiles):
+        """True, if set of tiles are enough for target (types must also match)."""
+        if len(tiles) < len(self.dest):
+            return False
+        desttypes = [tile.type for tile in self.dest]
+        desttypesn = Counter(desttypes)
+        types = [tile.type for tile in tiles]
+        typesn = Counter(types)
+        for typ in desttypesn.keys():
+            if typesn[typ] < desttypesn[typ]:
+                return False
+        return True
+    
+    def notzero_tiles(self, tiles):
+        return len(tiles) != 0
+
+    def node_has_no_future(self, tiles):
+        """True, if set of tiles can't lead to solution anymore."""
+        pass  # set in load function

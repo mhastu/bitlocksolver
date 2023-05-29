@@ -73,8 +73,8 @@ class Solver():
             for node in tree.leaves:
                 moves = self.map.moves(node.tiles)  # type: list[TileList.hashabletype]
                 for dir_i, newtiles in enumerate(moves):
-                    if len(newtiles) == 0:
-                        continue  # no moves possible for this node
+                    if self.map.node_has_no_future(newtiles):
+                        continue
                     newleaf = Node(newtiles, node, dir_i)
                     if newleaf.tiles == self.map.dest:
                         return newleaf.getrootpath()
@@ -139,8 +139,8 @@ class Solver():
             return False
         moves = self.map.moves(node.tiles)  # type: list[TileList.hashabletype]
         for dir_i, newtiles in enumerate(moves):
-            if len(newtiles) == 0:
-                continue  # no moves possible for this node
+            if self.map.node_has_no_future(newtiles):
+                continue
             newleaf = Node(newtiles, node, dir_i)
             if newleaf.tiles == self.map.dest:
                 return newleaf.getrootpath()
