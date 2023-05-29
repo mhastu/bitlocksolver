@@ -1,4 +1,5 @@
 from abc import ABC
+import numpy as np
 
 class Tile:
     """Represents a game tile. Equal to other tile if positions and type are same."""
@@ -29,6 +30,33 @@ class TileList(list):
     def hashable(self) -> hashabletype:
         """Return a hashable set of this list."""
         return self.hashabletype(self)
+
+    def dist(self, other, mp) -> float:
+        """Distance to other TileList.
+        
+        Distance between two tiles is l2-norm + 1.
+        Distance between two sets of indistinguishable tiles is the product of all distances.
+        Distance between all tiles is the sum of all distances between all sets of tiles.
+        """
+        # calculate norm between all positions
+        selfvecs = np.array([mp.pos2vec(st.pos) for st in self])[None]  # shape: (1, N, 2)
+        selfvecs = np.transpose(selfvecs, [2, 0, 1])  # shape: (2, N, 1)
+        othervecs = np.array([mp.pos2vec(ot.pos) for ot in other])[None]  # shape: (1, K, 2)
+        othervecs = np.transpose(othervecs, [2, 1, 0])  # shape: (2, 1, K)
+        norm1 = np.linalg.norm(selfvecs - othervecs, axis=0) + 1  # shape: (N, K)
+
+        # extract types for comparing (in-)distinguishable tiles
+        selftypes = np.array([st.type for st in self])  # shape: (N,)
+        othertypes = np.array([ot.type for ot in other])  # shape: (K,)
+        alltypes = set(list(selftypes) + list(othertypes))  # length: L (depends on repeated types)
+
+        # sum over all set-distances
+        dist = 0
+        for typ in alltypes:
+            setdist = np.prod(norm1[selftypes==typ,othertypes==typ])
+            dist += setdist
+
+        return dist
 
 
 class Map(ABC):
@@ -76,7 +104,7 @@ class IntMap(Map):
         destpositions = [t.pos for t in destlist]
         for h in range(self.height):
             for w in range(self.width):
-                pos = h*self.width + w
+                pos = self.vec2pos([h, w])
                 if pos in self.obstacles:
                     textmap[h][w] = self.OBSTACLE_CHAR
                 if pos in self.destroyers:
@@ -157,7 +185,7 @@ class IntMap(Map):
         # parse textmap
         for h, line in enumerate(textmap):
             for w, char in enumerate(line):
-                pos = h*self.width + w
+                pos = self.vec2pos([h, w])
                 if char == self.OBSTACLE_CHAR:
                     self.obstacles.append(pos)
                 if char == self.DESTROYER_CHAR:
@@ -172,3 +200,50 @@ class IntMap(Map):
         self.destroyers = self.destroyers.hashable()
         self.start = self.start.hashable()
         self.dest = self.dest.hashable()
+
+        error = self.check_for_errors()
+        if error:
+            print("ERROR: " + error)
+            exit(10)
+    
+    def check_for_errors(self) -> str or False:
+        """Returns error string if map blocks are invalid, else False."""
+        if len(self.obstacles) == 0:
+            return "No obstacles in map"
+        if len(self.dest) == 0:
+            return "No target blocks in map"
+        if len(self.start) == 0:
+            return "No starting blocks in map"
+        
+        starttypes = set([st.type for st in self.start])
+        desttypes = set([dt.type for dt in self.dest])
+        for typ in desttypes:
+            if typ not in starttypes:
+                return "No corresponding starting tile for target tile " + self.DEST_CHARS[typ]
+        
+        for h in range(self.height):
+            for w in range(self.width):
+                pos = self.vec2pos([h, w])
+                if self.isborder(pos) and (pos not in self.obstacles):
+                    return "Map is not surrounded by obstacle blocks"
+        
+        return False
+    
+    def isborder(self, pos):
+        """True, if pos is at the border of the map."""
+        vec = self.pos2vec(pos)
+        h = vec[0]
+        w = vec[1]
+        return (h==0) or (h==(self.height-1)) or (w==0) or (w==(self.width-1))
+
+    def pos2vec(self, pos):
+        """Convert pos (int) to 2-coordinate vector."""
+        w = pos % self.width
+        h = (pos - w) // self.width
+        return [h, w]
+
+    def vec2pos(self, vec):
+        """Convert vec (h, w) to pos (int)."""
+        h = vec[0]
+        w = vec[1]
+        return h*self.width + w

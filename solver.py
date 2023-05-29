@@ -29,33 +29,34 @@ class Solver():
         - False, if no solution found.
         """
         root = Node(self.map.start)
-        print("Building tree with", self.treesize, "levels...")
+        print(f"Building tree with {self.treesize} levels... ")
         treeresult = self.buildtree(set([root]))
+        print("Done.")
         if type(treeresult) == list:
             path = treeresult
-            print("Found optimal path in", len(path), "steps:")
+            print(f"Found optimal path in {len(path)} steps:")
             print(self.map.strpath(path))
             return path
         if type(treeresult) == int:
             dead_end_step = treeresult
-            print("No moves possible anymore after", dead_end_step, "steps.")
+            print(f"No moves possible anymore after {dead_end_step} steps.")
             return False
         if type(treeresult) == Tree:
             tree = treeresult
-            #print("No solution found within", tree.height, "steps.")
-            print("Starting forgetful iteration with additional path-length of", self.forgetfulsize)
+            print(f"Starting forgetful iteration with additional path-length of {self.forgetfulsize}... ")
             result = self.forgetful_iteration(tree, self.forgetfulsize)
+            print("Done.")
             if result is False:
-                print("Found no solution in", self.treesize+self.forgetfulsize, "steps.")
+                print(f"Found no solution in {self.treesize+self.forgetfulsize} steps.")
             elif type(result) == list:
                 path = result
-                print("Found optimal path in", len(path), "steps:")
+                print(f"Found optimal path in {len(path)} steps:")
                 print(self.map.strpath(path))
             return result
 
     def buildtree(self, leaves: set[Node]) -> list or Tree or int:
         """Breadth-first iteration through tree.
-        
+
         ## Parameters:
         tiles: current position of each game tile.
         leaves: nodes to walk through
@@ -84,6 +85,8 @@ class Solver():
                 return level
             tree.leaves = newleaves
             tree.height = level+1
+            print(f"{tree.height}/{self.treesize}", end="\r")
+        print("           ", end="\r")  # delete progress counter
         return tree
 
     def forgetful_iteration(self, tree, length) -> list or False:
@@ -97,7 +100,14 @@ class Solver():
         - path (list) if optimal path found.
         - False if no optimal path found.
         """
-        # TODO: sort nodes by distance to dest
+        # sort nodes by distance to destination
+        nodes = list(tree.leaves)
+        print(f"  Sorting {len(nodes)} leaves by distance to target... ", end="")
+        dest = TileList(self.map.dest)
+        distances = [TileList(node.tiles).dist(dest, self.map) for node in nodes]
+        nodes = [node for _, node in sorted(zip(distances, nodes), key=lambda pair: pair[0])]
+        print("Done.")
+
         maxlength = length
         path = False  # optimal path
         numleaves = len(tree.leaves)
@@ -105,9 +115,10 @@ class Solver():
             result = self.iterate_heightfirst(node, tree.height, maxlength, 0)
             if type(result) == list:
                 path = result
-                print(f"Found solution in {len(path)} (+{len(path) - tree.height}) steps:", self.map.strpath(path))
+                print(f"  Found solution in {len(path)} (+{len(path) - tree.height}) steps:", self.map.strpath(path))
                 maxlength = len(path) - tree.height - 1  # adjust maximum step length
             print(f"{i}/{numleaves}", end="\r")
+        print("           ", end="\r")  # delete progress counter
         return path
     
     def iterate_heightfirst(self, node, treeheight, maxlength, depth):
