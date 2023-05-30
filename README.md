@@ -3,14 +3,21 @@ A solver for the awesome puzzle game [Block in the Lock](https://store.steampowe
 
 Currently supported blocks:
 - 26 types of game tiles
+- movable destroyer game tile
 - obstacle/wall
 - destroyer
 
 Usage:
 ```
-bitlocksolve.py <mapfilename> [-w|-W <arrows>]
-      -w:          walkthrough after completion
-      -W <arrows>: walkthrough given direction arrows
+usage: bitlocksolve.py [-h] [-w] [-W arrows] [-t INT] [-f INT] mapfilename
+  -h, --help            show this help message and exit
+  -w, --walkthrough     Walkthrough after completion
+  -W arrows, --walkthrough-path arrows
+                        Walk through given direction arrows (do not solve)
+  -t INT, --tree-size INT
+                        Maximum number of tree levels to memorize before forgetful iteration.
+  -f INT, --forgetful-size INT
+                        Number of steps to simulate in forgetful iteration.
 ```
 
 Mapfile is a text file representing the 2D game map and uses following conventions:
@@ -20,16 +27,18 @@ Mapfile is a text file representing the 2D game map and uses following conventio
 | `A`-`Z`   | A target point for a game tile. Corresponds to lower-case letters of the starting point. |
 | `#`       | An obstacle (or a wall). Make sure the map is surrounded by those. |
 | `+`       | A destroyer block (game tiles landing in it will vanish). |
+| `*`       | A destroyer game tile (also moves). |
 
 ## Game rules
 Given is a 2D tiled map containing blocks of various types:
 - game tiles
+- destroyer tiles (also move), blocked by destroyer blocks
 - obstacle/wall
 - destroyer blocks
 - many more are available in the game but not implemented in this solver.
 
 The player has 4 possible decisions in each step: Left, right, up or down.
-After selecting a direction, all game tiles move one step in this direction, _if possible_.
+After selecting a direction, all game tiles (including destroyer tiles) move one step in this direction, _if possible_.
 They can e.g. be blocked by an obstacles or destroyed by a, you guessed it, destroyer block.
 Ideally, after as few steps as possible, the game tiles are in the _target position_.
 

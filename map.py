@@ -3,10 +3,14 @@ import numpy as np
 from collections import Counter
 
 class Tile:
-    """Represents a game tile. Equal to other tile if positions and type are same."""
+    """Represents a game tile. Equal to other tile if positions and type are same.
+    Equal to integer if integer==position."""
     def __init__(self, typ, pos):
-        self.type = typ
+        self.type = typ  # for distinguishing between tiles. 26 for destroyer tile
         self.pos = pos
+    
+    def is_destroyer(self):
+        return self.type == 26
     
     def __eq__(self, other):
         if type(other) == int:
@@ -23,6 +27,9 @@ class Tile:
 class TileList(list):
     """A sortable list of tiles."""
     hashabletype = frozenset
+
+    def __add__(self, other):
+        return TileList(super().__add__(other))
 
     def copy(self):
         """Return a TileList of new, equal Tile instances."""
@@ -75,13 +82,16 @@ class Map(ABC):
 class IntMap(Map):
     """A map where each position is represented by an integer."""
     DIRECTIONS = ['←', '→', '↑', '↓']
-    START_CHARS = [chr(ord('a')+i) for i in range(26)]
+    START_CHARS = [chr(ord('a')+i) for i in range(26)] + ['*']  # index 26 is destroyer tile
     DEST_CHARS = [chr(ord('A')+i) for i in range(26)]
     OBSTACLE_CHAR = '#'
     DESTROYER_CHAR = '+'
 
     def __init__(self, filename=None, width=None, height=None, obstacles=None, start=None, dest=None):
         self.dir_funcs = [self.__left, self.__right, self.__up, self.__down]
+        self.node_has_no_future = lambda tiles: not self.notzero_tiles(tiles)
+        self.destroy_tiles = self.destroy_tiles_onlyblocks
+        self.newpos_valid = lambda tile, newpos, tiles: not self.in_obstacle(newpos) and self.valid_with_othertiles(newpos, tiles)
         if filename is not None:
             self.load(filename)
         else:
@@ -108,17 +118,23 @@ class IntMap(Map):
                 pos = self.vec2pos([h, w])
                 if pos in self.obstacles:
                     textmap[h][w] = self.OBSTACLE_CHAR
-                if pos in self.destroyers:
+                elif pos in self.destroyers:
                     textmap[h][w] = self.DESTROYER_CHAR
-                elif pos in startpositions:
-                    tile = startlist[startpositions.index(pos)]  # extract tile to get type
-                    textmap[h][w] = self.START_CHARS[tile.type]
+                #elif pos in startpositions:  # don't print start positions
+                #    tile = startlist[startpositions.index(pos)]  # extract tile to get type
+                #    textmap[h][w] = self.START_CHARS[tile.type]
                 elif pos in destpositions:
                     tile = destlist[destpositions.index(pos)]  # extract tile to get type
                     textmap[h][w] = self.DEST_CHARS[tile.type]
-                # overwrite with current tiles
-                if pos in tiles:
-                    textmap[h][w] = '0'
+        
+        # overwrite with current tiles
+        for tile in tiles:
+            vec = self.pos2vec(tile.pos)
+            h = vec[0]
+            w = vec[1]
+            textmap[h][w] = self.START_CHARS[tile.type]
+
+        for h in range(self.height):
             textmap[h] = ''.join(textmap[h])
         textmap = '\n'.join(textmap)
         return textmap
@@ -127,6 +143,7 @@ class IntMap(Map):
         return "".join([self.DIRECTIONS[i] for i in path_indices])
 
     def moves(self, tiles) -> list[TileList.hashabletype]:
+        """Return all possible moves as list[left, right, up, down]."""
         # ascending sort, because for left and up movement the upper and left-most tiles
         # have to be moved first (to prevent collision with a tile which could
         # actually be moved).
@@ -147,11 +164,53 @@ class IntMap(Map):
         """
         for tile in tiles:
             newpos = func(tile.pos)  # type: int
-            #        collision with obstacle      collision with other tile
-            if not ((newpos in self.obstacles) or (newpos in tiles)):  # comparison between int and Tile
+            if self.newpos_valid(tile, newpos, tiles):
                 tile.pos = newpos
-        tiles = TileList(filter(lambda t: t.pos not in self.destroyers, tiles))
+        tiles = self.destroy_tiles(tiles)
         return tiles.hashable()  # make tiles hashable
+
+    def newpos_valid(self, tile, newpos, tiles) -> bool:
+        """True, if newly calculated position is valid."""
+        pass  # set in __init__() and load()
+    
+    def valid_with_destroyertiles(self, tile: Tile, newpos: int, tiles: TileList) -> bool:
+        """True, if newly calculated position is valid according to other tiles, destroyer tiles and destroyer blocks on map."""
+        is_destroyer = tile.is_destroyer()
+        if is_destroyer:
+            if newpos in self.destroyers:
+                return False  # destroyer tiles cannot move through destroyer blocks
+        if newpos in tiles:
+            othertile = tiles[tiles.index(newpos)]  # type: Tile
+            if is_destroyer == othertile.is_destroyer():
+                return False  # tiles only collide if different type (destroyer or not)
+        return True
+
+    def valid_with_othertiles(self, newpos: int, tiles: TileList) -> bool:
+        """True if newly calculated position is not inside another tile."""
+        return not (newpos in tiles)
+
+    def in_obstacle(self, pos: int) -> bool:
+        """True, if pos is inside an obstacle"""
+        return pos in self.obstacles
+
+    def destroy_tiles(self, tiles: TileList) -> TileList:
+        """Let destroyer tiles and blocks destroy tiles."""
+        pass  # set in __init__() and load()
+
+    def destroy_tiles_onlyblocks(self, tiles: TileList) -> TileList:
+        """Let destroyer blocks destroy tiles."""
+        return TileList(filter(lambda t: t.pos not in self.destroyers, tiles))
+    
+    def destroy_tiles_with_destroyertiles(self, tiles: TileList) -> TileList:
+        """Filter tiles destroyed by destroyer tiles and blocks."""
+        destroyer_tiles = TileList(filter(lambda t: t.is_destroyer(), tiles))
+        normal_tiles = TileList(filter(lambda t: not t.is_destroyer(), tiles))  # can this partitioning be done faster?
+        survived = lambda t: (
+            (t.pos not in self.destroyers) and  # not destroyed by block
+            (t.pos not in destroyer_tiles)  # not destroyed by tile
+        )
+        # destroyer tiles always survive
+        return destroyer_tiles + TileList(filter(survived, normal_tiles))
 
     def __left(self, pos) -> int:
         return pos-1
@@ -166,11 +225,12 @@ class IntMap(Map):
         return pos+self.width
 
     def load(self, filename) -> None:
-        """Loads a textfile where all obstacles (including borders) are marked by x
-        Returns 3 variables:
-        obstacles: the positions of the obstacles as a set.
-        start: the positions of the starting elements as a list, containing indistinguishable sets of tiles.
-        dest: the positions of the target points as a list, containing indistinguishable sets of tiles.
+        """Loads a textfile as a map.
+        Sets 3 variables:
+        self.obstacles: the positions of the obstacles as a set.
+        self.destroyers: the positions of the destroyer blocks as a set.
+        self.start: the positions of the starting elements as a list, containing indistinguishable sets of tiles.
+        self.dest: the positions of the target points as a list, containing indistinguishable sets of tiles.
         each position is an integer value counting row-first from top-left, i.e.
         pos=rownum*width + colnum
         """
@@ -212,7 +272,18 @@ class IntMap(Map):
         if len(self.destroyers) > 0:
             # always count tiles if destroyer block is present
             self.node_has_no_future = lambda tiles: (not self.notzero_tiles(tiles)) or (not self.enough_tiles(tiles))
-    
+        
+        # default
+        self.destroy_tiles = self.destroy_tiles_onlyblocks
+        self.newpos_valid = lambda tile, newpos, tiles: not self.in_obstacle(newpos) and self.valid_with_othertiles(newpos, tiles)
+        if self.has_destroyer_tiles():  # map has destroyer tiles
+            self.destroy_tiles = self.destroy_tiles_with_destroyertiles
+            self.newpos_valid = lambda tile, newpos, tiles: not self.in_obstacle(newpos) and self.valid_with_destroyertiles(tile, newpos, tiles)
+
+    def has_destroyer_tiles(self) -> bool:
+        """True, if destroyer tiles exist on map."""
+        return len([t for t in self.start if t.is_destroyer()]) > 0
+
     def check_for_errors(self) -> str or False:
         """Returns error string if map blocks are invalid, else False."""
         if len(self.obstacles) == 0:

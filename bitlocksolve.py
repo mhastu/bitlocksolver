@@ -21,7 +21,7 @@ class BitLockSolve:
 
     def parse_args(self):
         argparser = argparse.ArgumentParser(
-            prog="B.i.t.Lock Solver",
+            prog="bitlocksolve.py",
             description="""Solve levels by brute-force.
             If walkthrough is simulated, press enter to advance to next step.
             """

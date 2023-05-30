@@ -1,5 +1,5 @@
 from map import Map, IntMap, TileList, Tile
-from node import Node
+from node import Node, NodeWithDestroyerTileSupport
 
 
 class Tree:
@@ -21,6 +21,10 @@ class Solver():
         self.treesize = treesize
         self.forgetfulsize = forgetfulsize
 
+        self.newnode = Node
+        if self.map.has_destroyer_tiles():
+            self.newnode = NodeWithDestroyerTileSupport
+
     def solve(self) -> list or False:
         """Search for solution.
         
@@ -28,7 +32,7 @@ class Solver():
         - path (list) if solution found.
         - False, if no solution found.
         """
-        root = Node(self.map.start)
+        root = self.newnode(self.map.start)
         print(f"Building tree with {self.treesize} levels... ")
         treeresult = self.buildtree(set([root]))
         print("Done.")
@@ -75,8 +79,8 @@ class Solver():
                 for dir_i, newtiles in enumerate(moves):
                     if self.map.node_has_no_future(newtiles):
                         continue
-                    newleaf = Node(newtiles, node, dir_i)
-                    if newleaf.tiles == self.map.dest:
+                    newleaf = self.newnode(newtiles, node, dir_i)
+                    if newleaf.get_tiles() == self.map.dest:
                         return newleaf.getrootpath()
                     if newleaf.tiles not in tree.seen:
                         newleaves.add(newleaf)
@@ -141,8 +145,8 @@ class Solver():
         for dir_i, newtiles in enumerate(moves):
             if self.map.node_has_no_future(newtiles):
                 continue
-            newleaf = Node(newtiles, node, dir_i)
-            if newleaf.tiles == self.map.dest:
+            newleaf = self.newnode(newtiles, node, dir_i)
+            if newleaf.get_tiles() == self.map.dest:
                 return newleaf.getrootpath()
             result = self.iterate_heightfirst(newleaf, treeheight, maxlength, depth+1)
             if type(result) == list:  # found a solution
