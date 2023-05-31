@@ -2,7 +2,7 @@
 A solver for the awesome puzzle game [Block in the Lock](https://store.steampowered.com/app/1138990/Block_in_the_Lock/) (formerly known as B.i.t.Lock).
 
 Currently supported blocks:
-- 26 types of game tiles
+- 26 types of game tiles (13 normal, 13 reverse moving)
 - movable destroyer game tile
 - obstacle/wall
 - destroyer
@@ -24,23 +24,36 @@ Mapfile is a text file representing the 2D game map and uses following conventio
 | character | meaning |
 |-----------|---------|
 | `a`-`z`   | A starting point for a game tile. Use different letters for discriminable tiles. |
-| `A`-`Z`   | A target point for a game tile. Corresponds to lower-case letters of the starting point. |
-| `#`       | An obstacle (or a wall). Make sure the map is surrounded by those. |
-| `+`       | A destroyer block (game tiles landing in it will vanish). |
-| `*`       | A destroyer game tile (also moves). |
+| `A`-`Z`   | A target point for a game tile. Corresponds to above lower-case letters. |
+| `#`       | An obstacle (or a wall). |
+| `+`, `*`  | A stationary/moving destroyer (game tiles landing in it will vanish) |
+
+Planned:
+| character | meaning |
+|-----------|---------|
+| `=`, `<`, `>` | Stationary, moving and reverse moving _pushers_. |
+| `a`-`m`   | A starting point for a game tile. Use different letters for discriminable tiles. |
+| `z`-`n`   | A starting point for a reverse game tile. |
+| `A`-`M`   | A target point for a game tile. Corresponds to above lower-case letters, i.e. `a`=`A`, .., `m`=`M`, `z`=`A`, ..., `N`=`M`. |
 
 ## Game rules
 Given is a 2D tiled map containing blocks of various types:
 - game tiles
-- destroyer tiles (also move), blocked by destroyer blocks
 - obstacle/wall
-- destroyer blocks
+- destroyers
+- pushers
 - many more are available in the game but not implemented in this solver.
+
+All blocks are also available as tiles which move in the same or opposite direction (reverse tiles).
 
 The player has 4 possible decisions in each step: Left, right, up or down.
 After selecting a direction, all game tiles (including destroyer tiles) move one step in this direction, _if possible_.
 They can e.g. be blocked by an obstacles or destroyed by a, you guessed it, destroyer block.
 Ideally, after as few steps as possible, the game tiles are in the _target position_.
+
+Some additional rules:
+- moving destroyers are blocked by destroyer blocks.
+- moving destroyers move through game tiles and destroy them.
 
 ## Solving concept
 This is a brute-force solver which walks through all possible combinations of directions.
@@ -76,3 +89,7 @@ If we find a solution we save the path, the tree itself is not saved (forgetful 
 Set _k_ = _pathlength_ - 1, to ensure new solutions are shorter.
 - [x] Additionally to the _forgetful iteration_, we could sort the nodes of the last saved level by distance to the target to find more likely minimal solutions first.
 - [ ] Add [multithreading](https://docs.python.org/3/library/multiprocessing.html) support.
+- [ ] Investigate when exactly a level counts as solved. The current implementation is wrong (additional game tiles can in fact remain outside of the target).
+- [ ] Use extra sets of game tiles for different types (normal tile, destroyers, pushers, ...). Always filtering the TileList seems inefficient.
+- [ ] Instead of setting a fixed tree-size, set the available memory and dynamically choose if another tree level is possible.
+
