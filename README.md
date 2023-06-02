@@ -31,10 +31,27 @@ Mapfile is a text file representing the 2D game map and uses following conventio
 Planned:
 | character | meaning |
 |-----------|---------|
-| `=`, `<`, `>` | Stationary, moving and reverse moving _pushers_. |
-| `a`-`m`   | A starting point for a game tile. Use different letters for discriminable tiles. |
-| `z`-`n`   | A starting point for a reverse game tile. |
-| `A`-`M`   | A target point for a game tile. Corresponds to above lower-case letters, i.e. `a`=`A`, .., `m`=`M`, `z`=`A`, ..., `N`=`M`. |
+|           | Wall    |
+|           | Square Tile: normal, reverse, sticky, sleeping |
+|           | Top-left Pie: normal, reverse, sticky, sleeping |
+|           | Top-right Pie: normal, reverse, sticky, sleeping |
+|           | Bottom-right Pie: normal, reverse, sticky, sleeping |
+|           | Bottom-left Pie: normal, reverse, sticky, sleeping |
+|           | Square target |
+|           | Pie targets: Top-left, Top-right, Bottom-right, Bottom-left |
+|           | Killers: fixed, moving, reverse, sticky, sleeping |
+|           | Pushers: fixed, moving, reverse, sticky, sleeping |
+|           | Lava, Lava crack |
+|           | Hole |
+|           | Electro: fixed, moving, reverse, sticky, sleeping |
+| `|`, `-`  | Pipe: Vertical, horizontal |
+|           | Pipe curve: top-right, bottom-right, bottom-left, top-left |
+|           | T-Pipe: Right, bottom, left, top |
+| `+`       | Pipe cross |
+|           | Gate |
+|           | Conveyor: Top, right, bottom, left |
+|           | Square Dispenser: Top, right, bottom, left |
+|           | Killer Dispenser: Top, right, bottom, left |
 
 ## Game rules
 Given is a 2D tiled map containing blocks of various types:
@@ -92,4 +109,6 @@ Set _k_ = _pathlength_ - 1, to ensure new solutions are shorter.
 - [ ] Investigate when exactly a level counts as solved. The current implementation is wrong (additional game tiles can in fact remain outside of the target).
 - [ ] Use extra sets of game tiles for different types (normal tile, destroyers, pushers, ...). Always filtering the TileList seems inefficient.
 - [ ] Instead of setting a fixed tree-size, set the available memory and dynamically choose if another tree level is possible.
-
+- [ ] Read .lvl file (json)
+- [ ] Use same naming as in .lvl file
+- [ ] Make preferred characters configurable via yaml
